@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Avatar, Button, Col, Flex, Input, List, Row, Skeleton, Space } from 'antd';
-import { CheckCircleOutlined, DeleteOutlined, EditOutlined, HarmonyOSOutlined, HeartOutlined, PlusCircleOutlined, SunOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, DeleteOutlined, EditOutlined, HarmonyOSOutlined, HeartFilled, HeartOutlined, PlusCircleOutlined, SunOutlined } from '@ant-design/icons';
 import { CardC } from './Card';
 const count = 3;
 // const fakeDataUrl = `https://randomuser.me/api/?results=${count}&inc=name,gender,email,nat,picture&noinfo`;
@@ -12,7 +12,8 @@ export const Lists = () => {
   const [list, setList] = useState([]);
   const {edit,setEdit}=useState(true);
   const {editID,setEditId}=useState(null);
-  
+  const [value,setValue]=useState();
+  const [MaxId,setMaxId]=useState();
   useEffect(() => {
   
     callApi()
@@ -31,7 +32,9 @@ export const Lists = () => {
   const callApi=async()=>{
     let data=await fetch('http://localhost:8080/todos');
     let res=await data.json();
-    console.log('res',res)
+    console.log('res',res);
+    setMaxId(res?.length?res.length+1:0);
+
     setList(res);
     // setData(res);
   }
@@ -61,10 +64,11 @@ export const Lists = () => {
   //     });
   // };
 
-  const editDeleteCartHandler=(type,id)=>{
+  const editDeleteCartHandler=async(type,id)=>{
+    let data={};
     if(type=='cart'){
       console.log('----',type,id)
-
+     data={listStatus:type}
     }
     if(type=='edit'){
       // setEdit(edit=>!edit)
@@ -73,9 +77,42 @@ export const Lists = () => {
     }
   if(type=='delete'){
       console.log(type,id)
-
+      data={listStatus:type}
 
     }
+    
+    let res=await fetch("http://localhost:8080/todos/"+id,{
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(data)
+      }
+    );
+    let result=await res.json();
+    console.log('result',result)
+    await callApi();
+  }
+  const moveToDone=async(id)=>{
+    let data={status:'done'};
+    let res=await fetch('http://localhost:8080/todos/'+id,{
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(data)
+      }
+    );
+    callApi();
+    console.log("move to done",id)
+  }
+  const handleSubmit=async()=>{
+    let data={id:MaxId.toString(),description:value,status:"",listStatus:"",title:'todos'}
+    console.log("submit",value)
+    let res=await fetch('http://localhost:8080/todos',{
+      method:'POST',
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(data)
+    });
+    let d=await res.json();
+    console.log('d',d)
+    callApi();
   }
   const loadMore =
     !initLoading && !loading ? (
@@ -111,11 +148,13 @@ export const Lists = () => {
       
     }}>
         <Input
+        // value={value}
+        onChange={e=>{setValue(e.target.value)}}
           style={{  height:'40px',background:'black',boxShadow:'0px 0px .2rem #fff',color:'white'}}
           placeholder="Enter You'r Task"
         />
         <br></br>
-        <Button
+        <Button onClick={handleSubmit}
           style={{
             height:'40px',
             background:'rgb(240, 38, 38)',
@@ -147,15 +186,20 @@ export const Lists = () => {
       loadMore={loadMore}
       dataSource={list}
 
-      renderItem={(item,id) => (
+      renderItem={(item,index) => (
+        item.listStatus!='delete'?
+        <>
+        
         <List.Item style={{color:'white',fontSize:'15px',boxShadow:'0px 0px 0.2rem #fff',padding:'5px',borderRadius:'10px',margin:'10px'}}
           actions={
-            [<EditOutlined disabled={true} style={{cursor: 'not-allowed',fontSize:'18px',color:'white'}}
-            onClick={e=>{editDeleteCartHandler('edit',id)}}/>,
-            <HeartOutlined  onClick={e=>{editDeleteCartHandler('cart',id)}} 
-              style={{fontSize:'18px',color:'white'}}/>,
+            [<EditOutlined style={{cursor: 'not-allowed',fontSize:'18px',color:'white'}}
+            onClick={e=>{editDeleteCartHandler('edit',item.id)}}/>,
+            item.listStatus=='cart' && item.listStatus!=''?
+              <HeartOutlined  onClick={e=>{editDeleteCartHandler('cart',item.id)}}
+              style={{fontSize:'18px',color:'white'}}/>
+              :<HeartFilled style={{fontSize:'18px',color:'orange'}}/>,          
              <DeleteOutlined style={{fontSize:'18px',color:'white'}}
-             onClick={e=>{editDeleteCartHandler('delete',id)}}/>]}
+             onClick={e=>{editDeleteCartHandler('delete',item.id)}}/>]}
         >
           <Skeleton avatar title={false} loading={item.loading} active >
             {item.status=='done' && item.status!=""?
@@ -170,7 +214,7 @@ export const Lists = () => {
                 <>
                 <List.Item.Meta style={{color:'white',display:'contents'}}
                   
-                  avatar={<span style={{cursor:'pointer',padding:'20px',fontSize:'25px',color:'red'}}>&#9711;</span>}
+                  avatar={<span onClick={e=>{moveToDone(item.id)}}style={{cursor:'pointer',padding:'20px',fontSize:'25px',color:'red'}}>&#9711;</span>}
                   description={<span style={{marginTop:'20px',color:'white'}} >{item.description}
                   </span>}
                   
@@ -185,6 +229,7 @@ export const Lists = () => {
             
           </Skeleton>
         </List.Item>
+        </>:null
       )}
       /> 
     </Col>
